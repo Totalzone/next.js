@@ -10102,6 +10102,7 @@ dependencies = [
  "either",
  "indexmap 2.7.1",
  "indoc",
+ "itertools 0.10.5",
  "lazy_static",
  "num-bigint",
  "num-traits",
