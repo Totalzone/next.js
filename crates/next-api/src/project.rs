@@ -1307,6 +1307,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in middleware
             ),
             Vc::cell("middleware-edge".into()),
         )))
@@ -1362,6 +1363,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in middleware
             ),
             Vc::cell("middleware".into()),
         )))
@@ -1474,6 +1476,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in instrumentation
             ),
             Vc::cell("instrumentation".into()),
         )))
@@ -1529,6 +1532,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in instrumentation
             ),
             Vc::cell("instrumentation-edge".into()),
         )))
