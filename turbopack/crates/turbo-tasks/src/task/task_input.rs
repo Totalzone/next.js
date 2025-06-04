@@ -1,4 +1,4 @@
-use std::{any::Any, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration};
+use std::{fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use either::Either;
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
 };
 
@@ -164,29 +164,6 @@ where
 
     async fn resolve_input(&self) -> Result<Self> {
         Ok(*self)
-    }
-}
-
-impl<T> TaskInput for Value<T>
-where
-    T: Any
-        + std::fmt::Debug
-        + Clone
-        + std::hash::Hash
-        + Eq
-        + Send
-        + Sync
-        + Serialize
-        + for<'de> Deserialize<'de>
-        + TraceRawVcs
-        + 'static,
-{
-    fn is_resolved(&self) -> bool {
-        true
-    }
-
-    fn is_transient(&self) -> bool {
-        false
     }
 }
 
