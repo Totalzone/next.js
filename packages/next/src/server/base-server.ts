@@ -169,6 +169,7 @@ import {
 } from './lib/streaming-metadata'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
@@ -302,8 +303,6 @@ export type RequestContext<
   renderOpts: RenderOpts
 }
 
-export class NoFallbackError extends Error {}
-
 // Internal wrapper around build errors at development
 // time, to prevent us from propagating or logging them
 export class WrappedBuildError extends Error {
@@ -417,7 +416,6 @@ export default abstract class Server<
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
-    requestProtocol: 'http' | 'https'
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
 
   protected abstract getResponseCache(options: {
@@ -1447,21 +1445,8 @@ export default abstract class Server<
         !(this.serverOptions as any).webServerConfig &&
         !getRequestMeta(req, 'incrementalCache')
       ) {
-        let protocol: 'http:' | 'https:' = 'https:'
-
-        try {
-          const parsedFullUrl = new URL(
-            getRequestMeta(req, 'initURL') || '/',
-            'http://n'
-          )
-          protocol = parsedFullUrl.protocol as 'https:' | 'http:'
-        } catch {}
-
         const incrementalCache = await this.getIncrementalCache({
           requestHeaders: Object.assign({}, req.headers),
-          requestProtocol: protocol.substring(0, protocol.length - 1) as
-            | 'http'
-            | 'https',
         })
 
         incrementalCache.resetRequestCache()
@@ -2489,15 +2474,6 @@ export default abstract class Server<
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
-    let protocol: 'http:' | 'https:' = 'https:'
-
-    try {
-      const parsedFullUrl = new URL(
-        getRequestMeta(req, 'initURL') || '/',
-        'http://n'
-      )
-      protocol = parsedFullUrl.protocol as 'https:' | 'http:'
-    } catch {}
 
     // use existing incrementalCache instance if available
     const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
@@ -2506,9 +2482,6 @@ export default abstract class Server<
         ? (globalThis as any).__incrementalCache
         : await this.getIncrementalCache({
             requestHeaders: Object.assign({}, req.headers),
-            requestProtocol: protocol.substring(0, protocol.length - 1) as
-              | 'http'
-              | 'https',
           })
 
     // TODO: investigate, this is not safe across multiple concurrent requests
@@ -2681,10 +2654,12 @@ export default abstract class Server<
               'ampValidator',
               this.renderOpts.ampValidator
             )
+            addRequestMeta(request, 'minimalMode', this.minimalMode)
 
             if (renderOpts.err) {
               addRequestMeta(request, 'invokeError', renderOpts.err)
             }
+            response.statusCode = res.statusCode
 
             const handler: (
               req: ServerRequest | IncomingMessage,
@@ -2697,9 +2672,17 @@ export default abstract class Server<
             result = await handler(request, response, {
               waitUntil: this.getWaitUntil(),
             })
+            res.setHeader(
+              'Cache-Control',
+              response.getHeader('Cache-Control') as string
+            )
+            setRequestMeta(req, getRequestMeta(request))
 
             // this is handled fully in handler
-            if (isAppRouteRouteModule(routeModule)) {
+            if (
+              isAppRouteRouteModule(routeModule) ||
+              isPagesRouteModule(routeModule)
+            ) {
               return result as any as ResponseCacheEntry | null
             }
 
@@ -3158,6 +3141,31 @@ export default abstract class Server<
       })
     }
 
+    if (
+      // default _error module in dev doesn't have handler yet
+      components.ComponentMod.handler &&
+      isPagesRouteModule(components.routeModule)
+    ) {
+      if (
+        routeModule?.isDev &&
+        isDynamicRoute(pathname) &&
+        (components.getStaticPaths || isAppPath)
+      ) {
+        await this.getStaticPaths({
+          pathname,
+          requestHeaders: req.headers,
+          page: components.page,
+          isAppPath,
+        })
+      }
+      await doRender({
+        postponed: undefined,
+        pagesFallback: false,
+        fallbackRouteParams: null,
+      })
+      return null
+    }
+
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
       responseGenerator,
@@ -3182,7 +3190,11 @@ export default abstract class Server<
     }
 
     if (!cacheEntry) {
-      if (ssgCacheKey && !(isOnDemandRevalidate && revalidateOnlyGenerated)) {
+      if (
+        ssgCacheKey &&
+        !(isOnDemandRevalidate && revalidateOnlyGenerated) &&
+        !isPagesRouteModule(components.routeModule)
+      ) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
         // have a cache key. If we do have a cache key but we don't end up

@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { NextConfigComplete } from '../../config-shared'
 
 export type RevalidateFn = (config: {
@@ -19,6 +20,8 @@ export type RouterServerContext = Record<
     // revalidate function to bypass going through network
     // to invoke revalidate request (uses mocked req/res)
     revalidate?: RevalidateFn
+    // function to render the 404 page
+    render404?: (req: IncomingMessage, res: ServerResponse) => Promise<void>
     // current loaded public runtime config
     publicRuntimeConfig?: NextConfigComplete['publicRuntimeConfig']
     // exposing nextConfig for dev mode specifically

@@ -46,6 +46,7 @@ import {
 import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
+import { decodePathParams } from './decode-path-params'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -251,7 +252,7 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      const pathname = parsedUrl.pathname || ''
+      const pathname = decodePathParams(parsedUrl.pathname || '')
 
       if (checkLocaleApi(pathname)) {
         return
@@ -326,7 +327,7 @@ export function getResolveRoutes(
     async function handleRoute(
       route: (typeof routes)[0]
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
-      let curPathname = parsedUrl.pathname || '/'
+      let curPathname = decodePathParams(parsedUrl.pathname || '/')
 
       if (config.i18n && route.internal) {
         const hadTrailingSlash = curPathname.endsWith('/')
@@ -435,7 +436,7 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          const pathname = parsedUrl.pathname || ''
+          const pathname = decodePathParams(parsedUrl.pathname || '')
 
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
