@@ -1407,7 +1407,17 @@ async fn merge_modules(
     let mut merged_ast = Program::Module(merged_ast);
 
     GLOBALS.set(globals_merged, || {
+        // let mut p = merged_ast.clone();
+        // p.visit_mut_with(&mut DisplayContextVisitor {
+        //     postfix: "individual",
+        //     mark: None,
+        // });
+        // println!("----b before {}", swc_core::ecma::codegen::to_code(&p),);
         merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
+        // println!(
+        //     "----b after  {}",
+        //     swc_core::ecma::codegen::to_code(&merged_ast),
+        // );
         // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
     });
 
@@ -1416,10 +1426,21 @@ async fn merge_modules(
 
 // struct DisplayContextVisitor {
 //     postfix: &'static str,
+//     mark: Option<Mark>,
 // }
 // impl VisitMut for DisplayContextVisitor {
 //     fn visit_mut_ident(&mut self, ident: &mut swc_core::ecma::ast::Ident) {
-//         ident.sym = format!("{}$$${}{}", ident.sym, self.postfix, ident.ctxt.as_u32()).into();
+//         if &*ident.sym != "__turbopack_merged__" {
+//             let has_mark = self.mark.is_some_and(|mark| ident.ctxt.has_mark(mark));
+//             ident.sym = format!(
+//                 "{}$$${}{}{}",
+//                 ident.sym,
+//                 self.postfix,
+//                 ident.ctxt.as_u32(),
+//                 if has_mark { "___" } else { "" }
+//             )
+//             .into();
+//         }
 //     }
 // }
 
@@ -1596,12 +1617,26 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(&globals, || {
+                // let mut p = program.clone();
+                // p.visit_mut_with(&mut DisplayContextVisitor {
+                //     postfix: "individual",
+                //     mark: retain_syntax_context.as_ref().map(|v| v.0),
+                // });
                 if let Some((is_import_mark, _, preserved_exports)) = &retain_syntax_context {
+                    // println!(
+                    //     "----a before {} {:?}",
+                    //     swc_core::ecma::codegen::to_code(&p),
+                    //     preserved_exports
+                    // );
                     program.visit_mut_with(&mut hygiene_rename_only(
                         Some(top_level_mark),
                         *is_import_mark,
                         preserved_exports,
                     ));
+                    // println!(
+                    //     "----a after  {}",
+                    //     swc_core::ecma::codegen::to_code(&program)
+                    // );
                 } else {
                     program.visit_mut_with(
                         &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
@@ -1935,6 +1970,9 @@ fn hygiene_rename_only(
         }
 
         fn preserve_name(&self, orig: &Id) -> bool {
+            // println!("preserve_name {:?} {:?}", orig, self.preserved_exports.contains(orig) ||
+            // orig.1.has_mark(self.is_import_mark));
+
             self.preserved_exports.contains(orig) || orig.1.has_mark(self.is_import_mark)
         }
     }
