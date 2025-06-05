@@ -483,7 +483,7 @@ pub enum ResolveResultItem {
 /// other factors like exports conditions that can affect resolting and become
 /// part of the key (assuming the condition is unknown at compile time)
 #[derive(Clone, Debug, Default, Hash)]
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 pub struct RequestKey {
     pub request: Option<RcStr>,
     pub conditions: BTreeMap<String, bool>,
