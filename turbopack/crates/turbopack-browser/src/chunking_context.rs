@@ -161,7 +161,7 @@ impl BrowserChunkingContextBuilder {
     }
 
     pub fn use_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
-        self.chunking_context.content_hashing = Some(content_hashing);
+        // self.chunking_context.content_hashing = Some(content_hashing);
         self
     }
 
